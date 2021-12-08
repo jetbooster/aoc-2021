@@ -27,59 +27,82 @@ const counts = fyl.reduce((prev, number) => {
   });
 }, output);
 
-// part 1
-
-const { gamma, epsilon } = counts.reduce((prev, item) => {
-  if (item.ones > item.zeros) {
-    return { gamma: `${prev.gamma}1`, epsilon: `${prev.epsilon}0` };
+// part 1 (rev 2)
+const compressedCount = counts.reduce((prev, count) => {
+  if (count.ones > count.zeros) {
+    return `${prev}1`;
   }
-  return { gamma: `${prev.gamma}0`, epsilon: `${prev.epsilon}1` };
-}, { gamma: '', epsilon: '' });
+  return `${prev}0`;
+}, '');
 
-const g = Number.parseInt(gamma, 2);
-const e = Number.parseInt(epsilon, 2);
+console.log(compressedCount);
+
+const g = Number.parseInt(compressedCount, 2);
+// eslint-disable-next-line no-bitwise
+const e = Number.parseInt(compressedCount, 2) ^ 0b111111111111;
 const result = g * e;
 
 console.log({
-  gamma, epsilon, g, e, result,
+  compressedCount, g, e, result,
 });
 
-// part 2 attempt 1
+// part 2 attempt 3
 
-const shouldKeep = (item:string, index:number, invert: boolean): boolean => {
-  console.log(counts);
-  const mostCommonIsOne = counts[index].ones > counts[index].zeros;
+const shouldKeep = (item:string, index:number, mostCommon: string, invert: boolean): boolean => {
   if (!invert) {
-    if (item[index] === (mostCommonIsOne ? '1' : '0')) {
+    if (item[index] === mostCommon) {
       // this record is a valid item to continue for calculating oxygenGeneratorRating
-      // continue down the stack
-      if (index === item.length - 1) {
-        return true;
-      }
-      return shouldKeep(item, index + 1, invert);
-    }
-    return false;
-  } if (item[index] === (mostCommonIsOne ? '0' : '1')) {
-    // this record is a valid item to continue for calculating co2ScrubberRating
-    // continue down the stack
-    if (index === item.length - 1) {
       return true;
     }
-    return shouldKeep(item, index + 1, invert);
+    return false;
+  } if (item[index] !== mostCommon) {
+    // this record is a valid item to continue for calculating co2ScrubberRating
+    return true;
   }
   return false;
 };
 
-const oxRating = fyl.filter((item) => shouldKeep(item, 0, false));
-const co2rating = fyl.filter((item) => shouldKeep(item, 0, true));
+const calcMostCommonDigit = (array:string[], index:number, invert: boolean) => {
+  const subcounts = array.reduce((prev, item) => {
+    if (item[index] === '1') {
+      return { ones: prev.ones + 1, zeros: prev.zeros };
+    }
+    return { ones: prev.ones, zeros: prev.zeros + 1 };
+  }, { ones: 0, zeros: 0 });
+  console.log({ subcounts, index, invert });
+  if (subcounts.ones > subcounts.zeros) {
+    return '1';
+  }
+  if (subcounts.ones === subcounts.zeros) {
+    return '1';
+  }
+  return '0';
+};
 
-console.log({ oxRating, co2rating });
+let o2Copy = [...fyl];
+let co2Copy = [...fyl];
+const binaryStringLength = o2Copy[0].length;
 
-// attempt 1: FAILED. does not work if the number of options
-// is filtered down to 1 before reaching the final digit
+for (let i = 0; i < binaryStringLength; i += 1) {
+  const mostCommonDigit = calcMostCommonDigit(o2Copy, i, false);
+  o2Copy = o2Copy.filter((item) => shouldKeep(item, i, mostCommonDigit, false));
+  if (o2Copy.length === 1) {
+    break;
+  }
+}
 
-// attempt 2
-const oxRating2 = fyl.filter((item) => shouldKeep(item, 0, false));
-const co2rating2 = fyl.filter((item) => shouldKeep(item, 0, true));
+for (let i = 0; i < binaryStringLength; i += 1) {
+  const mostCommonDigit = calcMostCommonDigit(co2Copy, i, true);
+  co2Copy = co2Copy.filter((item) => shouldKeep(item, i, mostCommonDigit, true));
+  if (co2Copy.length === 1) {
+    break;
+  }
+}
 
-console.log({ oxRating, co2rating });
+const o2Rating = Number.parseInt(o2Copy[0], 2);
+const co2Rating = Number.parseInt(co2Copy[0], 2);
+const result2 = o2Rating * co2Rating;
+
+console.log({
+  o2Copy, co2Copy, o2Rating, co2Rating, result2,
+});
